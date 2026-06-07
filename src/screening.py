@@ -22,25 +22,41 @@ class StockScreener:
         
         regime = {
             "all_longs_off": False,
-            "nifty_above_200dma": False,
-            "vix_below_25": False,
-            "stop_widen_atr": 0.0
+            "reduce_size_50_nifty": False,
+            "vix_below_15": False,
+            "reduce_size_25_vix": False,
+            "reduce_size_50_vix": False,
+            "stop_widen_atr": 0.0,
+            "no_breakouts": False,
+            "trend_preferred": False,
+            "mean_reversion_preferred": False
         }
         
         if nifty is not None and not nifty.empty and len(nifty) >= 200:
             current_nifty = nifty['Close'].iloc[-1]
+            ma50 = nifty['Close'].rolling(50).mean().iloc[-1]
             ma200 = nifty['Close'].rolling(200).mean().iloc[-1]
             if current_nifty < ma200:
                 regime["all_longs_off"] = True
-            else:
-                regime["nifty_above_200dma"] = True
+            if current_nifty < ma50:
+                regime["reduce_size_50_nifty"] = True
+                
+            adx = calculate_adx(nifty, 14).iloc[-1]
+            if adx > 25:
+                regime["trend_preferred"] = True
+            elif adx < 20:
+                regime["mean_reversion_preferred"] = True
                 
         if vix is not None and not vix.empty:
             current_vix = vix['Close'].iloc[-1]
-            if current_vix < 25:
-                regime["vix_below_25"] = True
-            if current_vix > 18:
-                regime["stop_widen_atr"] = 0.5  # Widen stops in high volatility
+            if current_vix < 15:
+                regime["vix_below_15"] = True
+            elif 15 <= current_vix <= 20:
+                regime["reduce_size_25_vix"] = True
+                regime["stop_widen_atr"] = 1.0  # Widen stops by 1 ATR
+            elif current_vix > 20:
+                regime["reduce_size_50_vix"] = True
+                regime["no_breakouts"] = True
                 
         return regime
 
@@ -79,6 +95,10 @@ class StockScreener:
                 avg_vol_50 = df['Volume'].iloc[-51:-1].mean()
                 vol_surge = df['Volume'].iloc[-1] / avg_vol_50 if avg_vol_50 > 0 else 1.0
                 
+                m6, m12 = calculate_momentum_score(df)
+                is_breakout, breakout_info = check_52w_breakout(df)
+                is_pullback, pullback_info = check_20dma_pullback(df)
+                
                 passed_stocks.append({
                     'Ticker': ticker,
                     'Price': current_price,
@@ -86,9 +106,12 @@ class StockScreener:
                     'ATR': atr,
                     'ATR_%': atr_pct,
                     'Vol_Surge': vol_surge,
-                    'Momentum_Score': calculate_momentum_score(df),
-                    'Breakout_Candidate': check_52w_breakout(df),
-                    'Pullback_Candidate': check_20dma_pullback(df),
+                    'M6': m6,
+                    'M12': m12,
+                    'Breakout_Candidate': is_breakout,
+                    'Breakout_Info': breakout_info,
+                    'Pullback_Candidate': is_pullback,
+                    'Pullback_Info': pullback_info,
                     'RSI2': calculate_rsi(df, 2).iloc[-1]
                 })
             
@@ -98,6 +121,10 @@ class StockScreener:
         
         df_result = pd.DataFrame(passed_stocks) if passed_stocks else pd.DataFrame()
         if not df_result.empty:
+            from src.indicators import zscore
+            df_result['M6_Z'] = zscore(df_result['M6'])
+            df_result['M12_Z'] = zscore(df_result['M12'])
+            df_result['Momentum_Score'] = (df_result['M6_Z'] + df_result['M12_Z']) / 2
             df_result = df_result.sort_values(by='Momentum_Score', ascending=False)
             
         return df_result, regime

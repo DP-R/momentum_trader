@@ -9,12 +9,28 @@ class TradePlanner:
     def display_trade_plan(self, row, label, risk_amount_rs, stop_widen_atr):
         entry_price = row['Price']
         atr = row['ATR']
-        stop_loss = entry_price - atr * (1 + stop_widen_atr)
+        
+        stop_loss = None
         t1_target = entry_price + 1.5 * atr
         t2_target = entry_price + 3 * atr
+        
+        if label == "Breakout":
+            stop_loss = row.get('Breakout_Info', {}).get('stop_loss')
+        elif label == "Pullback":
+            stop_loss = row.get('Pullback_Info', {}).get('stop_loss')
+            swing_high = row.get('Pullback_Info', {}).get('swing_high')
+            if swing_high and not pd.isna(swing_high) and swing_high > entry_price:
+                t1_target = swing_high
+
+        if stop_loss is None or pd.isna(stop_loss):
+            stop_loss = entry_price - atr * (1 + stop_widen_atr)
+        else:
+            if stop_widen_atr > 0:
+                stop_loss = stop_loss - (atr * stop_widen_atr)
+
         stop_distance_pct = ((entry_price - stop_loss) / entry_price) * 100
 
-        if stop_distance_pct > 5.0:
+        if stop_distance_pct > 8.0: # Allow up to 8% for midcaps as per document
             return f"{label} [{row['Ticker']}] SKIP: Stop loss too wide ({stop_distance_pct:.1f}%).", None
 
         risk_per_share = entry_price - stop_loss
@@ -49,12 +65,21 @@ class TradePlanner:
 
     def generate_trade_plans(self, screener_df):
         risk_amount_rs = self.config.CAPITAL * self.config.RISK_PER_TRADE
+        
+        if self.regime.get("reduce_size_50_nifty") or self.regime.get("reduce_size_50_vix"):
+            risk_amount_rs *= 0.5
+        elif self.regime.get("reduce_size_25_vix"):
+            risk_amount_rs *= 0.75
+
         stop_widen_atr = self.regime.get("stop_widen_atr", 0.0)
 
         momentum_candidates = screener_df.head(5)
         
         if 'Breakout_Candidate' in screener_df.columns:
-            breakout_candidates = screener_df[screener_df['Breakout_Candidate']].sort_values(by='Vol_Surge', ascending=False).head(3)
+            if self.regime.get("no_breakouts") or self.regime.get("mean_reversion_preferred"):
+                breakout_candidates = pd.DataFrame()
+            else:
+                breakout_candidates = screener_df[screener_df['Breakout_Candidate']].sort_values(by='Vol_Surge', ascending=False).head(3)
         else:
             breakout_candidates = pd.DataFrame()
             

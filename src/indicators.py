@@ -45,7 +45,7 @@ def zscore(series):
 
 def calculate_momentum_score(df):
     if len(df) < 252:
-        return np.nan
+        return np.nan, np.nan
 
     ret_6m = df['Close'].iloc[-1] / df['Close'].iloc[-126] - 1
     vol_6m = df['Close'].pct_change().iloc[-126:].std()
@@ -53,13 +53,13 @@ def calculate_momentum_score(df):
     vol_12m = df['Close'].pct_change().iloc[-252:].std()
 
     if vol_6m <= 0 or vol_12m <= 0:
-        return np.nan
+        return np.nan, np.nan
 
-    return 0.5 * (ret_6m / vol_6m) + 0.5 * (ret_12m / vol_12m)
+    return (ret_6m / vol_6m), (ret_12m / vol_12m)
 
 def check_52w_breakout(df):
     if len(df) < 252:
-        return False
+        return False, {}
 
     current_price = df['Close'].iloc[-1]
     prev_52w_high = df['Close'].iloc[-253:-1].max()
@@ -73,12 +73,27 @@ def check_52w_breakout(df):
     volume_surge = avg_vol_50 > 0 and df['Volume'].iloc[-1] >= 1.5 * avg_vol_50
     trend_ok = current_price > ma50 and current_price > ma200
     dma_rising = ma50 > ma50_prev and ma200 > ma200_prev
+    
+    # 3-week base check: past 15 days max/min shouldn't vary by more than 15%
+    base_high = df['High'].iloc[-16:-1].max()
+    base_low = df['Low'].iloc[-16:-1].max() # Actually we want min
+    base_low = df['Low'].iloc[-16:-1].min()
+    base_tight = False
+    if base_low > 0:
+        base_tight = (base_high / base_low - 1) < 0.15
 
-    return breakout and volume_surge and trend_ok and dma_rising
+    is_candidate = breakout and volume_surge and trend_ok and dma_rising and base_tight
+    
+    # Stop loss: low of breakout candle or recent swing low (using 5 day low)
+    swing_low = df['Low'].iloc[-5:].min()
+    candle_low = df['Low'].iloc[-1]
+    stop_loss = min(swing_low, candle_low)
+    
+    return is_candidate, {"stop_loss": stop_loss}
 
 def check_20dma_pullback(df):
     if len(df) < 200:
-        return False
+        return False, {}
 
     current_price = df['Close'].iloc[-1]
     ma20 = df['Close'].rolling(20).mean().iloc[-1]
@@ -90,4 +105,14 @@ def check_20dma_pullback(df):
     in_uptrend = current_price > ma50 and current_price > ma200
     bullish_reversal = df['Close'].iloc[-1] > df['Open'].iloc[-1] and df['Close'].iloc[-1] > df['Close'].iloc[-2]
 
-    return in_uptrend and near_20dma and rsi2 < 10 and bullish_reversal
+    is_candidate = in_uptrend and near_20dma and rsi2 < 10 and bullish_reversal
+    
+    # Stop loss: low of signal candle or swing low
+    swing_low = df['Low'].iloc[-5:].min()
+    candle_low = df['Low'].iloc[-1]
+    stop_loss = min(swing_low, candle_low)
+    
+    # Target 1: prior swing high
+    swing_high = df['High'].iloc[-20:-1].max()
+    
+    return is_candidate, {"stop_loss": stop_loss, "swing_high": swing_high}

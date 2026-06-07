@@ -5,15 +5,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def simulate_trades(trade_plans_data, as_of_date):
+def simulate_trades(trade_plans_data, as_of_date, data_fetcher=None):
     if not trade_plans_data:
         return pd.DataFrame()
-        
+
     start_date = (datetime.strptime(as_of_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
     end_date = datetime.today().strftime('%Y-%m-%d')
-    
+
     results = []
-    
+
     for plan in trade_plans_data:
         ticker = plan['Ticker']
         entry_price = plan['Entry_Price']
@@ -21,20 +21,24 @@ def simulate_trades(trade_plans_data, as_of_date):
         t1 = plan['T1']
         t2 = plan['T2']
         initial_stop = plan['Stop_Loss']
-        
+
         logger.info(f"Simulating {ticker} from {start_date}...")
-        
+
         try:
-            df = yf.Ticker(ticker).history(start=start_date, end=end_date)
+            if data_fetcher:
+                df = data_fetcher.fetch_historical_data(ticker, start_date, end_date)
+            else:
+                import yfinance as yf
+                df = yf.Ticker(ticker).history(start=start_date, end=end_date)
+
             if df.empty:
                 logger.warning(f"No forward data for {ticker}")
                 continue
-                
+
             status = 'Open'
             exit_price = None
             exit_date = None
             current_stop = initial_stop
-            
             for date, row in df.iterrows():
                 low = row['Low']
                 high = row['High']
