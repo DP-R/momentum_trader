@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import numpy as np
 from src.indicators import calculate_atr, calculate_adx, calculate_rsi, calculate_momentum_score, check_52w_breakout, check_20dma_pullback
 
 def test_calculate_atr():
@@ -46,8 +47,8 @@ def test_check_52w_breakout():
         'Volume': [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600] * 23
     }
     df = pd.DataFrame(data)
-    result = check_52w_breakout(df)
-    assert isinstance(result, bool)
+    result, info = check_52w_breakout(df)
+    assert isinstance(result, (bool, np.bool_))
 
 def test_check_20dma_pullback():
     data = {
@@ -58,5 +59,5 @@ def test_check_20dma_pullback():
         'Volume': [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600] * 20
     }
     df = pd.DataFrame(data)
-    result = check_20dma_pullback(df)
-    assert isinstance(result, bool)
+    result, data = check_20dma_pullback(df)
+    assert isinstance(result, (bool, np.bool_))

@@ -1,0 +1,6 @@
+Waiting for process 36473 to complete...
+./wait_and_upload.sh: line 4: wait: pid 36473 is not a child of this shell
+Process 36473 completed.
+Running upload script...
+Error: backtest_results_2020-01-01_to_2025-01-01.xlsx does not exist.
+Done.

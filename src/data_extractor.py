@@ -23,8 +23,9 @@ class DataFetcher:
         end_date = (end_date_obj + timedelta(days=1)).strftime('%Y-%m-%d')
         return start_date, end_date
 
-    def preload_data(self, tickers: list[str]):
-        start_date, end_date = self.get_start_end_dates()
+    def preload_data(self, tickers: list[str], start_date: str = None, end_date: str = None):
+        if not start_date or not end_date:
+            start_date, end_date = self.get_start_end_dates()
         try:
             logger.info(f"Bulk downloading data for {len(tickers)} tickers...")
             data = yf.download(tickers, start=start_date, end=end_date, progress=False)
@@ -52,7 +53,7 @@ class DataFetcher:
                 # Slice data between start_date and end_date (exclusive of end_date as per yfinance behavior)
                 sliced_df = df.loc[(df.index >= pd.to_datetime(start_date)) & (df.index < pd.to_datetime(end_date))]
                 if not sliced_df.empty:
-                    return sliced_df
+                    return sliced_df.copy()
                 else:
                     return pd.DataFrame()
 

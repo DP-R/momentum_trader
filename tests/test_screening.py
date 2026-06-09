@@ -1,4 +1,3 @@
-import pytest
 import pandas as pd
 from src.screening import StockScreener
 from src.data_extractor import DataFetcher
@@ -39,4 +38,4 @@ def test_screen_stocks():
     assert not df.empty
     assert "TEST" in df["Ticker"].values
     assert "EMPTY" not in df["Ticker"].values
-    assert regime["nifty_above_200dma"] is True
+    assert regime["all_longs_off"] is False

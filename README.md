@@ -37,6 +37,25 @@ pip install -r requirements.txt
 
 ## Usage
 
+You can run the Momentum Trader using the main script with different arguments:
+
+**1. Run for the current date:**
+```bash
+python main.py
+```
+
+**2. Run for a specific past date (Backtest):**
+```bash
+python main.py --as-of-date YYYY-MM-DD
+```
+
+**3. Run for a date range (Backtest):**
+```bash
+python main.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD
+```
+
+### Modules
+
 1. **Data Extraction**: Use the functions in `data_extractor.py` to fetch historical stock data from Yahoo Finance.
 2. **Indicator Calculation**: Utilize the functions in `indicators.py` to compute technical indicators such as ATR, ADX, and RSI.
 3. **Stock Screening**: Apply the screening functions in `screening.py` to filter stocks based on liquidity and volatility.

@@ -2,8 +2,6 @@ from src.indicators import (
     calculate_atr, calculate_adx, calculate_rsi, 
     calculate_momentum_score, check_52w_breakout, check_20dma_pullback
 )
-from datetime import datetime
-import yfinance as yf
 import pandas as pd
 import logging
 

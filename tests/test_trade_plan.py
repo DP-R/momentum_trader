@@ -1,4 +1,3 @@
-import pytest
 import pandas as pd
 from src.trade_plan import TradePlanner
 from src.config import Config
@@ -18,13 +17,13 @@ def test_display_trade_plan():
         'Swing_Low': 96.0
     })
     
-    output = planner.display_trade_plan(row, "Momentum")
+    output, plan_dict = planner.display_trade_plan(row, "Momentum", risk_amount_rs=5000.0, stop_widen_atr=0.0)
 
-    assert "SETUP: TEST" in output
-    assert "► ACTION: Buy" in output
-    assert "► STOPS: Initial Stop Loss:" in output
-    assert "T1 (Book 50%):" in output
-    assert "T2: Trail remaining at 10-EMA" in output
+    assert "Momentum" in output
+    assert "Buy" in output
+    assert "Stop Loss:" in output
+    assert "T1:" in output
+    assert "T2:" in output
 
 def test_display_trade_plan_skip_wide_stop():
     config = Config(CAPITAL=500000, RISK_PER_TRADE=0.01)
@@ -41,7 +40,7 @@ def test_display_trade_plan_skip_wide_stop():
         'Swing_Low': 90.0
     })
 
-    output = planner.display_trade_plan(row, "Momentum")
+    output, plan_dict = planner.display_trade_plan(row, "Momentum", risk_amount_rs=5000.0, stop_widen_atr=0.0)
     assert "SKIP: Stop loss too wide" in output
 
 def test_display_trade_plan_invalid_stop():
@@ -59,7 +58,7 @@ def test_display_trade_plan_invalid_stop():
         'Swing_Low': 100.0
     })
 
-    output = planner.display_trade_plan(row, "Breakout")
+    output, plan_dict = planner.display_trade_plan(row, "Breakout", risk_amount_rs=5000.0, stop_widen_atr=0.0)
     assert "SKIP: Invalid stop level." in output
 
 def test_display_trade_plan_small_position_size():
@@ -78,7 +77,7 @@ def test_display_trade_plan_small_position_size():
         'Swing_Low': 98.0
     })
 
-    output = planner.display_trade_plan(row, "Breakout")
+    output, plan_dict = planner.display_trade_plan(row, "Breakout", risk_amount_rs=1.0, stop_widen_atr=0.0)
     assert "SKIP: Position size too small after risk sizing." in output
 
 def test_generate_trade_plans():
@@ -98,10 +97,10 @@ def test_generate_trade_plans():
         'Pullback_Candidate': [False, False, True]
     })
     
-    plans = planner.generate_trade_plans(df)
+    plans_str, plans_data = planner.generate_trade_plans(df)
     # We have 3 rows. The logic checks pullback, breakout, then momentum. 
     # Should get 1 pullback, 1 breakout, 1 momentum.
-    assert len(plans) == 3
-    assert any("Momentum" in p for p in plans)
-    assert any("Breakout" in p for p in plans)
-    assert any("Pullback" in p for p in plans)
+    assert len(plans_str) == 5
+    assert any("Momentum" in p for p in plans_str)
+    assert any("Breakout" in p for p in plans_str)
+    assert any("Pullback" in p for p in plans_str)

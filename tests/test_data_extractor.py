@@ -1,4 +1,3 @@
-import pytest
 from src.data_extractor import DataFetcher
 
 def test_fetch_historical_data_valid_ticker():
